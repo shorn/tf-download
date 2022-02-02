@@ -1,11 +1,74 @@
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-  dependencies {
+import org.apache.tools.ant.taskdefs.condition.Os
+
+repositories {
+  maven {
+    /* Repository structure:
+    https://kopi-cloud-tf-binary.s3.amazonaws.com/
+    └─ terraform-binary/
+      └─ terraform/
+        └─ 1.1.4/
+          ├─ terraform-1.1.4.pom
+          ├─ terraform-1.1.4-windows_amd64.zip
+          └─ terraform-1.1.4-linux_amd64.zip
+    */
+    url "https://kopi-cloud-tf-binary.s3.amazonaws.com/"
   }
 }
 
-ext {
+configurations {
+  tfBinary
 }
 
+dependencies {
+  tfBinary([
+    group     : 'terraform-binary',
+    name      : 'terraform',
+    version   : '1.1.4',
+    classifier: getOsClassifer(),
+    ext       : 'zip'
+  ])
+}
+
+task showTfBinaryLocation {
+  doLast {
+    println "Terraform binary: " + configurations.tfBinary.singleFile
+  }
+}
+
+task unzipTfBinary(type: Copy){
+  from zipTree(configurations.tfBinary.singleFile)
+  into configurations.tfBinary.singleFile.parentFile
+}
+
+task tfVersion(type: Exec){
+  dependsOn(unzipTfBinary)
+
+  workingDir project.rootDir
+  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 'version'
+
+  standardOutput = new ByteArrayOutputStream()
+
+  ext.output = {
+    return standardOutput.toString()
+  }
+
+  doLast {
+    println ext.output()
+  }
+}
+
+
+static String getOsClassifer() {
+  if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+    if (Os.isArch("amd64")) {
+      return "windows_amd64"
+    }
+  } else if (Os.isFamily(Os.FAMILY_UNIX)) {
+    if (Os.isArch("amd64")) {
+      return "linux_amd64"
+    }
+  }
+
+  throw new UnsupportedOperationException(
+    "Don't know classifier for current System: ${System.properties}")
+}
