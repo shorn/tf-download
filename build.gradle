@@ -1,32 +1,27 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 repositories {
-  maven {
-    /* Repository structure:
-    https://kopi-cloud-tf-binary.s3.amazonaws.com/
-    └─ terraform-binary/
-      └─ terraform/
-        └─ 1.1.4/
-          ├─ terraform-1.1.4.pom
-          ├─ terraform-1.1.4-windows_amd64.zip
-          └─ terraform-1.1.4-linux_amd64.zip
-    */
-    url "https://kopi-cloud-tf-binary.s3.amazonaws.com/"
+  ivy {
+    url 'https://releases.hashicorp.com/'
+    patternLayout {
+      /* Terraform release website uses a different layout than standard maven
+         structure (underscores insted of dashes and no POM file). */
+      artifact(
+        '/[organization]/[revision]/[module]_[revision]_[classifier].[ext]' )
+    }
+    metadataSources { 
+      // this tells Gradle only the artifact is there, no other metadata files
+      artifact()
+    }
   }
 }
-
+  
 configurations {
   tfBinary
 }
 
 dependencies {
-  tfBinary([
-    group     : 'terraform-binary',
-    name      : 'terraform',
-    version   : '1.1.4',
-    classifier: getOsClassifer(),
-    ext       : 'zip'
-  ])
+  tfBinary "terraform:terraform:1.1.4:${tfOsClassifier}@zip"
 }
 
 task showTfBinaryLocation {
@@ -42,23 +37,31 @@ task unzipTfBinary(type: Copy){
 
 task tfVersion(type: Exec){
   dependsOn(unzipTfBinary)
-
-  workingDir project.rootDir
-  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 'version'
-
-  standardOutput = new ByteArrayOutputStream()
-
-  ext.output = {
-    return standardOutput.toString()
-  }
-
-  doLast {
-    println ext.output()
-  }
+  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
+    'version'
 }
 
+task tfHelp(type: Exec){
+  dependsOn(unzipTfBinary)
+  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
+    '-help'
+}
 
-static String getOsClassifer() {
+task tfInit(type: Exec){
+  dependsOn(unzipTfBinary)
+  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
+    'init'
+}
+
+task tfShow(type: Exec){
+  dependsOn(unzipTfBinary)
+  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
+    'show'
+}
+
+/* Can't use a plugin like google/os-detector because Terraform uses a different
+architecture naming scheme. */
+static String getTfOsClassifier() {
   if (Os.isFamily(Os.FAMILY_WINDOWS)) {
     if (Os.isArch("amd64")) {
       return "windows_amd64"
@@ -68,7 +71,7 @@ static String getOsClassifer() {
       return "linux_amd64"
     }
   }
-
-  throw new UnsupportedOperationException(
-    "Don't know classifier for current System: ${System.properties}")
+  
+  println System.properties
+  throw new GradleException("Don't know classifier for current platform")
 }
