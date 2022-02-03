@@ -46,7 +46,7 @@ Either create the bucket manually, or run the Gradle task
     * TF will access the bucket via the access key from `gradle.properties`
     * privacy of this file is important because TF may store secrets in there
 * enable `bucket versioning`
-    * eventually, everyone mess up their state file, having history is helpful
+    * eventually, everyone mess up their state file - having history is helpful
 
 ### Gradle task
 
