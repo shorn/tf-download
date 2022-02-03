@@ -27,10 +27,11 @@ Never use the "root account" of an AWS account to do stuff.
 
 * sign in as the IAM user (will need your Account ID)
 * In IAM console, find the new user and create an `access key`
-    * save access key to `~/.gradle/gradle.properties`  
+    * save access key to `~/.config/tf-download/aws.credentials`  
 ```
-systemProp.tf_download_access_key=AKIA...
-systemProp.tf_download_secret_key=...
+[default]
+aws_access_key_id=AKIAXXX
+aws_secret_access_key=
 ```
 
 
@@ -50,8 +51,9 @@ Either create the bucket manually, or run the Gradle task
 ### Gradle task
 
 Note that you won't be able to run this task without changing the bucket name
-because they must be globally unique.  
-May want to change the region too, see [S3Util](buildSrc/src/main/groovy/tfdownload/S3Util.groovy)
+because AWS S3 buckets must be globally unique.  
+May want to change the region too, see 
+[S3Util](buildSrc/src/main/groovy/tfdownload/S3Util.groovy).
 
 * `./gradlew createS3StateBucket`
     * only need to run this once 
