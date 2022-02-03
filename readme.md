@@ -31,7 +31,7 @@ Never use the "root account" of an AWS account to do stuff.
 ```
 [default]
 aws_access_key_id=AKIAXXX
-aws_secret_access_key=
+aws_secret_access_key=XXX
 ```
 
 
