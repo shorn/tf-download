@@ -58,8 +58,7 @@ class S3Util{
         bucket(bucketName).
         versioningConfiguration(
           VersioningConfiguration.builder().status(ENABLED).build()
-        ).
-        build() 
+        ).build() 
     )
 
     println "blocking public ACLs"
