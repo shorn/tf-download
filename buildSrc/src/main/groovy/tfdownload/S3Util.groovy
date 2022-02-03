@@ -35,7 +35,7 @@ class S3Util{
     def s3 = s3Client()
 
     if( getBucket(bucketName) ){
-      println "Bucket already exists: $bucketName"
+      println "bucket already exists: $bucketName"
       return getBucket(bucketName)
     }
 
@@ -45,14 +45,14 @@ class S3Util{
       acl(BucketCannedACL.PRIVATE).
       build()
 
-    println "create bucket: $bucketName"
+    println "creating bucket: $bucketName"
     s3.createBucket(req)
     
-    println "wait for bucket to exist"
+    println "waiting for bucket to exist"
     s3.waiter().waitUntilBucketExists(
       HeadBucketRequest.builder().bucket(bucketName).build() )
 
-    println "set bucket versioning"
+    println "enabling bucket versioning"
     s3.putBucketVersioning(
       PutBucketVersioningRequest.builder().
         bucket(bucketName).
