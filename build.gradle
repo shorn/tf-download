@@ -18,8 +18,8 @@ repositories{
   ivy{
     url 'https://releases.hashicorp.com/'
     patternLayout{
-      /* Terraform release website uses a different layout than standard maven
-         structure (underscores insted of dashes and no POM file). */
+      /* Terraform release site uses a different layout than standard maven/ivy
+         structure (underscores insted of dashes and no metadata file). */
       artifact(
         '/[organization]/[revision]/[module]_[revision]_[classifier].[ext]')
     }
