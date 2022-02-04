@@ -1,89 +1,124 @@
 import tfdownload.OsUtil
 import tfdownload.S3Util
 
-repositories {
-  ivy {
+import java.nio.file.Paths
+
+plugins{
+  // for clean
+  id 'base'
+}
+
+ext{
+  tfSrcDir = "src/main/terraform"
+  awsCredFile = System.getProperty('user.home') +
+    "/.config/tf-download/aws.credentials"
+}
+
+repositories{
+  ivy{
     url 'https://releases.hashicorp.com/'
-    patternLayout {
+    patternLayout{
       /* Terraform release website uses a different layout than standard maven
          structure (underscores insted of dashes and no POM file). */
       artifact(
-        '/[organization]/[revision]/[module]_[revision]_[classifier].[ext]' )
+        '/[organization]/[revision]/[module]_[revision]_[classifier].[ext]')
     }
-    metadataSources { 
+    metadataSources{
       // this tells Gradle only the artifact is there, no other metadata files
       artifact()
     }
   }
 }
-  
-configurations {
+
+configurations{
   tfBinary
 }
 
-dependencies {
+dependencies{
   tfBinary "terraform:terraform:1.1.4:${OsUtil.classifier}@zip"
-}
-
-ext {
 }
 
 /* Intended to be run once, manually, to bootstrap the AWS account - not to 
 be a task dependency or something like that. */
-task createS3StateBucket {
+task createS3StateBucket{
+  group "terraform"
   description = "creates S3 bucket to store TF state if it doesn't exist"
   ext{
     // must match the AWS TF setup
     bucketName = "tf-download-state"
   }
-  doLast {
+  doLast{
+    if( file(awsCredFile).exists() ){
+      S3Util.credPath = Paths.get(awsCredFile)
+    }
     def bucket = S3Util.getBucket(ext.bucketName)
     if( bucket ){
-      println "ts state bucket exists: $ext.bucketName"
-    }
-    else {
+      println "ts state bucket exists: $bucketName"
+    } else{
       println "creating ts state bucket: $ext.bucketName"
       S3Util.createPrivateVersionedBucket(ext.bucketName)
     }
   }
 }
 
-//<editor-fold defaultstate="collapsed" desc="TF tasks">
-
-task showTfBinaryLocation {
-  doLast {
+task showTfBinaryLocation{
+  group "terraform"
+  doLast{
     println "Terraform binary: " + configurations.tfBinary.singleFile
   }
 }
 
 task unzipTfBinary(type: Copy){
+  group "terraform"
   from zipTree(configurations.tfBinary.singleFile)
   into configurations.tfBinary.singleFile.parentFile
 }
 
-task tfVersion(type: Exec){
-  dependsOn(unzipTfBinary)
-  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
-    'version'
+[ 'init', 'validate', 'plan', 'apply', 'destroy',
+  'help', 'version', 'refresh', 'show', 'output'
+].each{ tfCommand ->
+  task "tf-$tfCommand"(type: Exec){
+    group "terraform"
+    dependsOn unzipTfBinary
+
+    executable "${configurations.tfBinary.singleFile.parentFile}/terraform"
+    args = ["-chdir=${tfSrcDir}", tfCommand]
+
+    environment += [
+      "TF_LOG": "OFF",
+    ]
+    if( file(awsCredFile).exists() ){
+      environment "AWS_SHARED_CREDENTIALS_FILE", awsCredFile
+    }
+
+    doFirst{
+      println "running TF command: " + commandLine
+    }
+  }
 }
 
-task tfHelp(type: Exec){
-  dependsOn(unzipTfBinary)
-  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
-    '-help'
+'tf-help'{
+  // help is not a command, just a standalone global option
+  args = ["-help"]
 }
 
-task tfInit(type: Exec){
-  dependsOn(unzipTfBinary)
-  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
-    'init'
+'tf-apply'{
+  args += "-auto-approve"
 }
 
-task tfShow(type: Exec){
-  dependsOn(unzipTfBinary)
-  commandLine "${configurations.tfBinary.singleFile.parentFile}/terraform", 
-    'show'
+'tf-destroy'{
+  // you must uncomment this or destroy won't run
+  // args += "-auto-approve"
 }
 
-//</editor-fold> "TF tasks"
+// standlone task so you run this instead of "tf init -upgrade" 
+task cleanTfLock(type: Delete){
+  group "build"
+  delete "$tfSrcDir/.terraform.lock.hcl"
+}
+
+clean{
+  dependsOn cleanTfLock
+  delete "$tfSrcDir/.terraform"
+}
 

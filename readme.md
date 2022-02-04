@@ -1,6 +1,8 @@
 This repo shows how to configure a [Gradle project](build.gradle) to download 
 and execute the correct Terraform binary for the platform you're executing on.
 
+The project runs against AWS and stores it's `.tfstate` in an S3 bucket. 
+
 
 ## Pre-requisites
  
