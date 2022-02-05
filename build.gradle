@@ -4,8 +4,8 @@ import tfdownload.S3Util
 import java.nio.file.Paths
 
 plugins{
-  // for clean
-  id 'base'
+  // for clean task
+  id 'base' 
 }
 
 ext{
@@ -15,6 +15,7 @@ ext{
 }
 
 repositories{
+  // this tells Gradle where the TF files are and what the structure is
   ivy{
     url 'https://releases.hashicorp.com/'
     patternLayout{
@@ -35,30 +36,9 @@ configurations{
 }
 
 dependencies{
+  /* this tells Gradle what version and architecture of TF to download, 
+  relies on releases.hashicorp.com being declared as a repository above. */
   tfBinary "terraform:terraform:1.1.4:${OsUtil.classifier}@zip"
-}
-
-/* Intended to be run once, manually, to bootstrap the AWS account - not to 
-be a task dependency or something like that. */
-task createS3StateBucket{
-  group "terraform"
-  description = "creates S3 bucket to store TF state if it doesn't exist"
-  ext{
-    // must match the AWS TF setup
-    bucketName = "tf-download-state"
-  }
-  doLast{
-    if( file(awsCredFile).exists() ){
-      S3Util.credPath = Paths.get(awsCredFile)
-    }
-    def bucket = S3Util.getBucket(ext.bucketName)
-    if( bucket ){
-      println "ts state bucket exists: $bucketName"
-    } else{
-      println "creating ts state bucket: $ext.bucketName"
-      S3Util.createPrivateVersionedBucket(ext.bucketName)
-    }
-  }
 }
 
 task showTfBinaryLocation{
@@ -70,6 +50,9 @@ task showTfBinaryLocation{
 
 task unzipTfBinary(type: Copy){
   group "terraform"
+  /* Gradle will download and cache the file for us.
+  Should only download the file if this task executes (i.e. will not download
+  during configuration phase). */
   from zipTree(configurations.tfBinary.singleFile)
   into configurations.tfBinary.singleFile.parentFile
 }
@@ -107,11 +90,12 @@ task unzipTfBinary(type: Copy){
 }
 
 'tf-destroy'{
-  // you must uncomment this or destroy won't run
+  // to avoid running this accidentlly, you must uncomment this or 
+  // destroy won't run - do not commit the uncommented version
   // args += "-auto-approve"
 }
 
-// standlone task so you run this instead of "tf init -upgrade" 
+// standlone task so you can run this instead of "tf init -upgrade" 
 task cleanTfLock(type: Delete){
   group "build"
   delete "$tfSrcDir/.terraform.lock.hcl"
@@ -120,5 +104,28 @@ task cleanTfLock(type: Delete){
 clean{
   dependsOn cleanTfLock
   delete "$tfSrcDir/.terraform"
+}
+
+/* Intended to be run once, manually, to bootstrap the AWS account - not to 
+be a task dependency or something like that. */
+task createS3StateBucket{
+  group "terraform"
+  description = "creates S3 bucket to store TF state if it doesn't exist"
+  ext{
+    // must match `terraform.backend.s3.bucket` in src/main/terraform/aws.tf
+    bucketName = "tf-download-state"
+  }
+  doLast{
+    if( file(awsCredFile).exists() ){
+      S3Util.credPath = Paths.get(awsCredFile)
+    }
+    def bucket = S3Util.getBucket(ext.bucketName)
+    if( bucket ){
+      println "tf state bucket exists: $bucketName"
+    } else{
+      println "creating tf state bucket: $ext.bucketName"
+      S3Util.createPrivateVersionedBucket(ext.bucketName)
+    }
+  }
 }
 
