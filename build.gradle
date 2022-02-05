@@ -96,7 +96,8 @@ task unzipTfBinary(type: Copy){
   // args += "-auto-approve"
 }
 
-// standlone task so you can run this instead of "tf init -upgrade" 
+/* standlone task so you can run this instead of "tf init -upgrade" after
+upgrading the AWS provider */
 task cleanTfLock(type: Delete){
   group "build"
   delete "$tfSrcDir/.terraform.lock.hcl"
